@@ -1,5 +1,127 @@
-import * as lib from '@/index';
+import { JSONRPCServer } from '@/server';
+import { JSONRPCClient } from '@/client';
+import { JSONRPCClientChannel, JSONRPCServerChannel } from '@/channel';
+import { buildRequest, ERROR_CODE, JSONRPCRequest, JSONRPCResponse } from '@/jsonrpc';
 
-test('add', () => {
-  expect(lib.add(1, 2)).toBe(3);
+function sleep (ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function newInstance () {
+  const moduleA = {
+    foo: {
+      bar: {
+        add (a: number, b: number): number {
+          return a + b;
+        },
+        async addAsync (a: number, b: number) {
+          await sleep(100);
+          return a + b;
+        }
+      },
+      error () {
+        throw new Error('Error');
+      },
+      async errorAsync () {
+        await sleep(100);
+        throw new Error('ErrorAsync');
+      }
+    }
+  };
+
+  const moduleB = {
+    async timeout () {
+      await sleep(600);
+      return 'Timeout';
+    },
+    async timeoutError () {
+      await sleep(600);
+      throw new Error('Timeout');
+    }
+  };
+
+  const modules = { moduleA, moduleB };
+
+  const serverHandlers: Array<(msg: JSONRPCRequest) => void> = [];
+  const clientHandlers: Array<(msg: JSONRPCResponse) => void> = [];
+
+  const serverChannel: JSONRPCServerChannel = {
+    send (message) {
+      setTimeout(() => {
+        clientHandlers.forEach(handler => handler(message));
+      }, 100);
+    },
+    onMessage (callback) {
+      serverHandlers.push(callback);
+    }
+  };
+
+  const clientChannel: JSONRPCClientChannel = {
+    send (message) {
+      setTimeout(() => {
+        serverHandlers.forEach(handler => handler(message));
+      }, 100);
+    },
+    onMessage (callback) {
+      clientHandlers.push(callback);
+    }
+  };
+
+  const client = new JSONRPCClient<typeof modules>(clientChannel, { debug: true, timeout: 500 });
+  const server = new JSONRPCServer(serverChannel, { debug: true });
+
+  server.register(modules);
+
+  return { client, server, clientChannel, serverChannel, modules, serverHandlers, clientHandlers };
+}
+
+test('server: invalid method', async () => {
+  const { clientChannel } = newInstance();
+
+  await new Promise(resolve => {
+    clientChannel.onMessage(async (message) => {
+      expect(message.error).toBeDefined();
+      expect(message.error!.code).toBe(ERROR_CODE.INVALID_METHOD);
+      expect(message.error!.message).toBe('Invalid method');
+      resolve(undefined);
+    });
+    clientChannel.send(buildRequest('', [1, 2]));
+  });
+});
+
+test('method call', async () => {
+  const { client } = newInstance();
+
+  expect(await client.remote.moduleA.foo.bar.add(1, 2)).toBe(3);
+  expect(await client.remote.moduleA.foo.bar.addAsync(1, 2)).toBe(3);
+
+  try {
+    await client.remote.moduleA.foo.error();
+  } catch (error) {
+    expect(error.message).toBe('Error');
+  }
+
+  try {
+    await client.remote.moduleA.foo.errorAsync();
+  } catch (error) {
+    expect(error.message).toBe('ErrorAsync');
+  }
+
+  try {
+    await client.remote.moduleA['not-exist-mothod'](1, 2);
+  } catch (error) {
+    expect(error.message).toBe('Invalid method');
+  }
+
+  try {
+    await client.remote.moduleB.timeout();
+  } catch (error) {
+    expect(error.message.includes('Timeout [')).toBe(true);
+  }
+
+  try {
+    await client.remote.moduleB.timeoutError();
+  } catch (error) {
+    expect(error.message.includes('Timeout [')).toBe(true);
+  }
 });
