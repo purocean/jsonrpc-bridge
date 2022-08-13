@@ -1,16 +1,16 @@
 import { getLogger } from '@/logger';
 import { JSONRPCClientChannel } from '@/channel';
-import { buildRequest } from '@/jsonrpc';
+import { buildNotify, buildRequest } from '@/jsonrpc';
 
 export interface Options {
   debug?: boolean;
   timeout?: number;
 }
 
-type ModulesPromisify<M> = {
+type ModulesPromisify<M, NoReturn = false> = {
   [K in keyof M]: M[K] extends (...args: infer P) => infer R
-    ? (...args: P) => Promise<R>
-    : ModulesPromisify<M[K]>;
+    ? NoReturn extends false ? (...args: P) => Promise<R> : (...args: P) => void
+    : ModulesPromisify<M[K], NoReturn>;
 }
 
 type Handler = {
@@ -60,39 +60,7 @@ export class JSONRPCClient<Modules = any> {
     });
   }
 
-  private _call (method: string, args: any[]) {
-    this.logger.debug(`Calling [${method}]`, args);
-
-    return new Promise((resolve, reject) => {
-      const message = buildRequest(method, args);
-
-      this.channel.send(message);
-
-      const timer = setTimeout(() => {
-        const handler = this.handlers.get(id);
-        if (handler) {
-          this.handlers.delete(id);
-          reject(new Error(`Timeout [${id}]`));
-        }
-      }, this.opts.timeout);
-
-      const id = message.id;
-      this.handlers.set(id, {
-        resolve: (value) => {
-          clearTimeout(timer);
-          this.handlers.delete(id);
-          resolve(value);
-        },
-        reject: (reason) => {
-          clearTimeout(timer);
-          this.handlers.delete(id);
-          reject(reason);
-        }
-      });
-    });
-  }
-
-  public get call (): ModulesPromisify<Modules> & ((method: keyof Flat<Modules>, args: any[]) => Promise<any>) {
+  private _proxy (processor: (method: string, args: any[]) => any) {
     const path: string[] = [];
 
     const _proxy = () => {
@@ -104,7 +72,7 @@ export class JSONRPCClient<Modules = any> {
         },
         apply: (_, __, args) => {
           const method = path.join('.');
-          return this._call(method, args);
+          return processor.call(this, method, args);
         },
       });
     };
@@ -118,8 +86,50 @@ export class JSONRPCClient<Modules = any> {
         return _proxy();
       },
       apply: (_, __, [method, args]: [ string, any[] ]) => {
-        return this._call(method, args);
+        return processor.call(this, method, args);
       },
+    });
+  }
+
+  public get call () : ModulesPromisify<Modules> & ((method: keyof Flat<Modules>, args: any[]) => Promise<any>) {
+    return this._proxy((method: string, args: any[]) => {
+      this.logger.debug(`Calling [${method}]`, args);
+
+      return new Promise((resolve, reject) => {
+        const message = buildRequest(method, args);
+
+        this.channel.send(message);
+
+        const timer = setTimeout(() => {
+          const handler = this.handlers.get(id);
+          if (handler) {
+            this.handlers.delete(id);
+            reject(new Error(`Timeout [${id}]`));
+          }
+        }, this.opts.timeout);
+
+        const id = message.id;
+        this.handlers.set(id, {
+          resolve: (value) => {
+            clearTimeout(timer);
+            this.handlers.delete(id);
+            resolve(value);
+          },
+          reject: (reason) => {
+            clearTimeout(timer);
+            this.handlers.delete(id);
+            reject(reason);
+          }
+        });
+      });
+    });
+  }
+
+  public get notify (): ModulesPromisify<Modules, true> & ((method: keyof Flat<Modules>, args: any[]) => void) {
+    return this._proxy((method: string, args: any[]) => {
+      this.logger.debug(`Notify [${method}]`, args);
+      const message = buildNotify(method, args);
+      this.channel.send(message);
     });
   }
 }

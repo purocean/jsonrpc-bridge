@@ -45,6 +45,14 @@ export function buildRequest<T extends Array<any> = any[]> (method: string, para
   };
 }
 
+export function buildNotify<T extends Array<any> = any[]> (method: string, params: T): JSONRPCRequest<T> {
+  return {
+    jsonrpc: '2.0',
+    method,
+    params
+  };
+}
+
 export function buildResult<T> (id: number, result: T): JSONRPCResult<T> {
   return {
     jsonrpc: '2.0',

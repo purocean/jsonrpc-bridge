@@ -89,7 +89,7 @@ test('server: invalid method', async () => {
   });
 });
 
-test('method call', async () => {
+test('call', async () => {
   const { client } = newInstance();
 
   expect(await client.call.moduleA.foo.bar.add(1, 2)).toBe(3);
@@ -127,4 +127,12 @@ test('method call', async () => {
   } catch (error) {
     expect(error.message.includes('Timeout [')).toBe(true);
   }
+});
+
+test('notify', async () => {
+  const { client, modules } = newInstance();
+  jest.spyOn(modules.moduleA.foo.bar, 'add');
+  client.notify.moduleA.foo.bar.add(1, 2);
+  await sleep(101);
+  expect(modules.moduleA.foo.bar.add).toHaveBeenCalledWith(1, 2);
 });
