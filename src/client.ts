@@ -18,6 +18,16 @@ type Handler = {
   reject (reason: any): void,
 }
 
+export type Flat<T extends Record<string, any>, M extends string = ''> =(
+  {
+    [K in keyof T as (
+      T[K] extends (...args: any) => any
+      ? (K extends string ? (M extends '' ? K : `${M}.${K}`) : never)
+      : (K extends string ? keyof Flat<T[K], M extends '' ? K : `${M}.${K}`> : never)
+    )]: never
+  }
+)
+
 export class JSONRPCClient<Modules = any> {
   private opts: Options;
   private logger: ReturnType<typeof getLogger>;
@@ -50,7 +60,39 @@ export class JSONRPCClient<Modules = any> {
     });
   }
 
-  public get remote (): ModulesPromisify<Modules> {
+  private _call (method: string, args: any[]) {
+    this.logger.debug(`Calling [${method}]`, args);
+
+    return new Promise((resolve, reject) => {
+      const message = buildRequest(method, args);
+
+      this.channel.send(message);
+
+      const timer = setTimeout(() => {
+        const handler = this.handlers.get(id);
+        if (handler) {
+          this.handlers.delete(id);
+          reject(new Error(`Timeout [${id}]`));
+        }
+      }, this.opts.timeout);
+
+      const id = message.id;
+      this.handlers.set(id, {
+        resolve: (value) => {
+          clearTimeout(timer);
+          this.handlers.delete(id);
+          resolve(value);
+        },
+        reject: (reason) => {
+          clearTimeout(timer);
+          this.handlers.delete(id);
+          reject(reason);
+        }
+      });
+    });
+  }
+
+  public get call (): ModulesPromisify<Modules> & ((method: keyof Flat<Modules>, args: any[]) => Promise<any>) {
     const path: string[] = [];
 
     const _proxy = () => {
@@ -60,48 +102,24 @@ export class JSONRPCClient<Modules = any> {
           path.push(prop.toString());
           return _proxy();
         },
-        apply: (_, __, argArray) => {
+        apply: (_, __, args) => {
           const method = path.join('.');
-          this.logger.debug(`Calling [${method}]`, argArray);
-
-          return new Promise((resolve, reject) => {
-            const message = buildRequest(method, argArray);
-
-            this.channel.send(message);
-
-            const timer = setTimeout(() => {
-              const handler = this.handlers.get(id);
-              if (handler) {
-                this.handlers.delete(id);
-                reject(new Error(`Timeout [${id}]`));
-              }
-            }, this.opts.timeout);
-
-            const id = message.id;
-            this.handlers.set(id, {
-              resolve: (value) => {
-                clearTimeout(timer);
-                this.handlers.delete(id);
-                resolve(value);
-              },
-              reject: (reason) => {
-                clearTimeout(timer);
-                this.handlers.delete(id);
-                reject(reason);
-              }
-            });
-          });
+          return this._call(method, args);
         },
       });
     };
 
-    return new Proxy({} as any, {
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    return new Proxy((function () {}) as any, {
       get: (_, name) => {
         name = name.toString();
         this.logger.debug(`Getting remote module [${name}]`);
         path.push(name);
         return _proxy();
-      }
+      },
+      apply: (_, __, [method, args]: [ string, any[] ]) => {
+        return this._call(method, args);
+      },
     });
   }
 }

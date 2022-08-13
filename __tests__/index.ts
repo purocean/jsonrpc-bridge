@@ -92,35 +92,38 @@ test('server: invalid method', async () => {
 test('method call', async () => {
   const { client } = newInstance();
 
-  expect(await client.remote.moduleA.foo.bar.add(1, 2)).toBe(3);
-  expect(await client.remote.moduleA.foo.bar.addAsync(1, 2)).toBe(3);
+  expect(await client.call.moduleA.foo.bar.add(1, 2)).toBe(3);
+  expect(await client.call.moduleA['foo.bar'].add(1, 2)).toBe(3);
+  expect(await client.call('moduleA.foo.bar.addAsync', [1, 2])).toBe(3);
+  expect(await client.call['moduleA.foo.bar.addAsync'](1, 2)).toBe(3);
+  expect(await client.call.moduleA.foo.bar.addAsync(1, 2)).toBe(3);
 
   try {
-    await client.remote.moduleA.foo.error();
+    await client.call.moduleA.foo.error();
   } catch (error) {
     expect(error.message).toBe('Error');
   }
 
   try {
-    await client.remote.moduleA.foo.errorAsync();
+    await client.call.moduleA.foo.errorAsync();
   } catch (error) {
     expect(error.message).toBe('ErrorAsync');
   }
 
   try {
-    await client.remote.moduleA['not-exist-mothod'](1, 2);
+    await client.call.moduleA['not-exist-mothod'](1, 2);
   } catch (error) {
     expect(error.message).toBe('Invalid method');
   }
 
   try {
-    await client.remote.moduleB.timeout();
+    await client.call.moduleB.timeout();
   } catch (error) {
     expect(error.message.includes('Timeout [')).toBe(true);
   }
 
   try {
-    await client.remote.moduleB.timeoutError();
+    await client.call.moduleB.timeoutError();
   } catch (error) {
     expect(error.message.includes('Timeout [')).toBe(true);
   }
