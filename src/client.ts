@@ -2,7 +2,7 @@ import { getLogger } from '@/logger';
 import { JSONRPCClientChannel } from '@/channel';
 import { buildNotify, buildRequest } from '@/jsonrpc';
 
-export interface Options {
+export interface ClientOptions {
   debug?: boolean;
   timeout?: number;
 }
@@ -28,13 +28,13 @@ export type Flat<T extends Record<string, any>, M extends string = ''> =(
   }
 )
 
-export class JSONRPCClient<Modules = any> {
-  private opts: Options;
+export class JSONRPCClient<Modules extends Record<string, any> = any> {
+  private opts: ClientOptions;
   private logger: ReturnType<typeof getLogger>;
   private channel: JSONRPCClientChannel;
   private handlers = new Map<number, Handler>();
 
-  constructor (channel: JSONRPCClientChannel, opts?: Options) {
+  constructor (channel: JSONRPCClientChannel, opts?: ClientOptions) {
     this.opts = { debug: false, timeout: 30000, ...opts };
     this.logger = getLogger('JSONRPCClient', this.opts.debug);
     this.channel = channel;

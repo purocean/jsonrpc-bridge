@@ -2,17 +2,17 @@ import { getLogger } from '@/logger';
 import { JSONRPCServerChannel } from '@/channel';
 import { buildError, buildResult, ERROR_CODE } from '@/jsonrpc';
 
-export interface Options {
+export interface ServerOptions {
   debug?: boolean;
 }
 
 export class JSONRPCServer {
-  private opts: Options;
+  private opts: ServerOptions;
   private logger: ReturnType<typeof getLogger>;
   private channel: JSONRPCServerChannel;
   private modules: { [name: string]: any } = {};
 
-  constructor (channel: JSONRPCServerChannel, opts?: Options) {
+  constructor (channel: JSONRPCServerChannel, opts?: ServerOptions) {
     this.opts = { debug: false, ...opts };
     this.logger = getLogger('JSONRPCServer', this.opts.debug);
     this.channel = channel;
