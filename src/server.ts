@@ -61,7 +61,15 @@ export class JSONRPCServer {
     }
   }
 
-  public setModules (modules: { [name: string]: any }): void {
-    this.modules = { ...modules };
+  public addModule (name: string, members: any): () => void {
+    if (this.modules[name]) {
+      throw new Error(`Module [${name}] already exists`);
+    }
+
+    this.modules[name] = members;
+
+    return () => {
+      delete this.modules[name];
+    };
   }
 }

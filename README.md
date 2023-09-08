@@ -17,7 +17,7 @@ import * as testModule from './testModule';
 
 const serverChannel: JSONRPCServerChannel = ...;
 const server = new JSONRPCServer(serverChannel, { debug: true });
-server.setModules(modules);
+server.addModule('testModule', modules);
 ```
 
 ### Client side
