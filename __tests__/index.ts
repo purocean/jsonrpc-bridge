@@ -70,7 +70,7 @@ function newInstance () {
   const client = new JSONRPCClient<typeof modules>(clientChannel, { debug: true, timeout: 500 });
   const server = new JSONRPCServer(serverChannel, { debug: true });
 
-  server.register(modules);
+  server.setModules(modules);
 
   return { client, server, clientChannel, serverChannel, modules, serverHandlers, clientHandlers };
 }

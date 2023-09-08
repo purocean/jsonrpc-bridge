@@ -61,7 +61,7 @@ export class JSONRPCServer {
     }
   }
 
-  public register (modules: { [name: string]: any }): void {
-    this.modules = { ...this.modules, ...modules };
+  public setModules (modules: { [name: string]: any }): void {
+    this.modules = { ...modules };
   }
 }
