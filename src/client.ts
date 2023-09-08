@@ -35,7 +35,7 @@ export class JSONRPCClient<Modules extends Record<string, any> = any> {
   private handlers = new Map<number, Handler>();
 
   constructor (channel: JSONRPCClientChannel, opts?: ClientOptions) {
-    this.opts = { debug: false, timeout: 30000, ...opts };
+    this.opts = { debug: false, timeout: 0, ...opts };
     this.logger = getLogger('JSONRPCClient', this.opts.debug);
     this.channel = channel;
 
@@ -100,23 +100,25 @@ export class JSONRPCClient<Modules extends Record<string, any> = any> {
 
         this.channel.send(message);
 
-        const timer = setTimeout(() => {
-          const handler = this.handlers.get(id);
-          if (handler) {
-            this.handlers.delete(id);
-            reject(new Error(`Timeout [${id}]`));
-          }
-        }, this.opts.timeout);
+        const timer = this.opts.timeout
+          ? setTimeout(() => {
+            const handler = this.handlers.get(id);
+            if (handler) {
+              this.handlers.delete(id);
+              reject(new Error(`Timeout [${id}]`));
+            }
+          }, this.opts.timeout)
+          : 0;
 
         const id = message.id;
         this.handlers.set(id, {
           resolve: (value) => {
-            clearTimeout(timer);
+            timer && clearTimeout(timer);
             this.handlers.delete(id);
             resolve(value);
           },
           reject: (reason) => {
-            clearTimeout(timer);
+            timer && clearTimeout(timer);
             this.handlers.delete(id);
             reject(reason);
           }
