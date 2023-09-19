@@ -17,7 +17,7 @@ export class JSONRPCServer {
     this.logger = getLogger('JSONRPCServer', this.opts.debug);
     this.channel = channel;
 
-    this.channel.onMessage(async (message) => {
+    this.channel.setMessageHandler(async (message) => {
       this.logger.debug('Received message', message);
 
       const res = this._getMethod(message.method);

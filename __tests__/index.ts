@@ -51,7 +51,7 @@ function newInstance () {
         clientHandlers.forEach(handler => handler(message));
       }, 100);
     },
-    onMessage (callback) {
+    setMessageHandler (callback) {
       serverHandlers.push(callback);
     }
   };
@@ -62,7 +62,7 @@ function newInstance () {
         serverHandlers.forEach(handler => handler(message));
       }, 100);
     },
-    onMessage (callback) {
+    setMessageHandler (callback) {
       clientHandlers.push(callback);
     }
   };
@@ -81,7 +81,7 @@ test('server: invalid method', async () => {
   const { clientChannel } = newInstance();
 
   await new Promise(resolve => {
-    clientChannel.onMessage(async (message) => {
+    clientChannel.setMessageHandler(async (message) => {
       expect(message.error).toBeDefined();
       expect(message.error!.code).toBe(ERROR_CODE.INVALID_METHOD);
       expect(message.error!.message).toBe('Invalid method');

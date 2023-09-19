@@ -39,7 +39,7 @@ export class JSONRPCClient<Modules extends Record<string, any> = any> {
     this.logger = getLogger('JSONRPCClient', this.opts.debug);
     this.channel = channel;
 
-    this.channel.onMessage((message) => {
+    this.channel.setMessageHandler((message) => {
       this.logger.debug('Received message', message);
 
       if (!message.id) {
