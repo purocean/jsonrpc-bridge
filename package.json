@@ -1,6 +1,6 @@
 {
   "name": "jsonrpc-bridge",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "JSON-RPC bridge for node.js / browser",
   "license": "MIT",
   "author": "purocean <purocean@gmail.com>",

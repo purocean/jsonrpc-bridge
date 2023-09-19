@@ -1,6 +1,6 @@
-import { getLogger } from '@/logger';
-import { JSONRPCServerChannel } from '@/channel';
-import { buildError, buildResult, ERROR_CODE } from '@/jsonrpc';
+import { getLogger } from './logger';
+import { JSONRPCServerChannel } from './channel';
+import { buildError, buildResult, ERROR_CODE } from './jsonrpc';
 
 export interface ServerOptions {
   debug?: boolean;

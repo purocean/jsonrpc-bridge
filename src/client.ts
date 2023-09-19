@@ -1,6 +1,6 @@
-import { getLogger } from '@/logger';
-import { JSONRPCClientChannel } from '@/channel';
-import { buildNotify, buildRequest } from '@/jsonrpc';
+import { getLogger } from './logger';
+import { JSONRPCClientChannel } from './channel';
+import { buildNotify, buildRequest } from './jsonrpc';
 
 export interface ClientOptions {
   debug?: boolean;
